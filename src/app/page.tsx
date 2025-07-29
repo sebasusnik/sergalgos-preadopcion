@@ -1,103 +1,485 @@
-import Image from "next/image";
+'use client'
+import { useState } from 'react'
+import { Input } from './ui/components/input'
+import { Textarea } from './ui/components/textarea'
+import { RadioGroup } from './ui/components/radio-group'
+import { Button } from './ui/components/button'
+import { FormField } from './ui/components/form-field'
+import { Modal } from './ui/components/modal'
+import { Trash2 } from 'lucide-react'
 
-export default function Home() {
+export default function AdoptionPage(): React.ReactElement {
+  const [formData, setFormData] = useState({
+    // Personal Info
+    fullName: '',
+    dni: '',
+    address: '',
+    neighborhood: '',
+    city: '',
+    phone: '',
+    email: '',
+    socialMedia: '',
+    // Questions
+    q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', q7: '', q8: '', q9: '', q10: '',
+    q11: '', q12: '', q13: '', q14: '', q15: '', q16: '', q17: '', q18: '', q19: '',
+    q20: '', q21: '', q22: '', q23: '', q24: null as string | null, q25: ''
+  })
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [imageInputs, setImageInputs] = useState([{ id: 0, files: [] as File[] }])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  const questions = {
+    // Personal Info
+    fullName: 'Nombres y Apellidos',
+    dni: 'DNI',
+    address: 'Domicilio',
+    neighborhood: 'Barrio',
+    city: 'Ciudad',
+    phone: 'Teléfonos',
+    email: 'E-Mail',
+    socialMedia: 'Usuario en redes sociales (Facebook o Instagram)',
+    // Questions
+    q1: '1. ¿Cuántas personas viven en la casa?',
+    q2: '2. ¿De qué edades?',
+    q3: '3. ¿Están todos los miembros de la familia de acuerdo en adoptar?',
+    q4: '4. ¿A qué se dedican los miembros de la familia o qué profesión ejercen?',
+    q5: '5. ¿Tiene algún animal en casa? ¿Cuál? ¿Está castrado?',
+    q6: '6. Si tienen perros, ¿de qué raza son y qué temperamento tienen?',
+    q7: '7. ¿En qué parte de la casa vive el perro?',
+    q8: '8. Si no tienen, ¿han tenido? Si es así, ¿qué pasó con ellos?',
+    q9: '9. ¿Por qué quiere adoptar? ¿Cuál es su motivación?',
+    q10: '10. ¿Vio algún rescatado en nuestra Web que lo haya decidido a adoptar?',
+    q11: '11. ¿Dónde vivirá el animal? (casa, departamento)',
+    q12: '12. En caso de tener jardín o patio, ¿están totalmente cerrados?',
+    q13: '13. ¿Tienen la vivienda en propiedad o alquiler? En el último caso, ¿cuentan con la autorización del propietario?',
+    q14: '14. ¿Han pensado qué pasaría con el perro si tuvieran que cambiar de domicilio?',
+    q15: '15. En caso de enfermedad o algún imprevisto, ¿tienen quién se haga cargo del animal?',
+    q16: '16. ¿Dónde dormirá el perro?',
+    q17: '17. ¿Cuántas veces lo sacarán al día y quién se encargará de hacerlo?',
+    q18: '18. ¿Cuánto tiempo pasará el animal solo en casa?',
+    q19: '19. ¿Han pensado qué hacer con el animal en vacaciones?',
+    q20: '20. ¿Ante qué situación o por qué motivo devolvería al perro?',
+    q21: '21. Cuando salen a pasear, ¿sueltan su perro para que corra libremente? ¿En qué lugar?',
+    q22: '22. La adopción es para toda la vida del perro, ¿son conscientes de la responsabilidad que esto significa? ¿Asumen esa responsabilidad?',
+    q23: '23. Realizamos una entrevista previa a la adopción y seguimientos posteriores, ¿está dispuesto a recibir una visita nuestra?',
+    q24: '24. Adjuntar fotos del lugar, patio y dónde vivirá.',
+    q25: '25. El traslado tiene un costo de $20.000. ¿Podrá abonarlo?'
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target
+    if (type === 'file') {
+      const target = e.target as HTMLInputElement
+      if (name === 'q24') {
+        // Handle multiple files for q24
+        const files = Array.from(target.files || [])
+        setUploadedFiles(files)
+        setFormData(prev => ({ ...prev, [name]: files.length > 0 ? 'Archivos adjuntos' : null }))
+      } else {
+        setFormData(prev => ({ ...prev, [name]: target.files?.[0] || null }))
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }))
+    }
+    // Clear error for the field being edited
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+  }
+
+  const handleRadioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+    // Clear error for the field being edited
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+  }
+
+  const addImageInput = () => {
+    const newId = Math.max(...imageInputs.map(input => input.id)) + 1
+    setImageInputs(prev => [...prev, { id: newId, files: [] }])
+  }
+
+  const removeImageInput = (id: number) => {
+    setImageInputs(prev => prev.filter(input => input.id !== id))
+  }
+
+  const handleImageChange = (id: number, files: FileList | null) => {
+    const fileArray = files ? Array.from(files) : []
+    setImageInputs(prev => {
+      const updatedInputs = prev.map(input => 
+        input.id === id ? { ...input, files: fileArray } : input
+      )
+      
+      // Update the main uploadedFiles state with all files from all inputs
+      const allFiles = updatedInputs
+        .map(input => input.files)
+        .flat()
+      setUploadedFiles(allFiles)
+      
+      // Update formData to indicate files are attached
+      setFormData(formData => ({ 
+        ...formData, 
+        q24: allFiles.length > 0 ? 'Archivos adjuntos' : null 
+      }))
+      
+      return updatedInputs
+    })
+  }
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {}
+    // Basic validation: check if required fields are empty
+    if (!formData.fullName.trim()) errors.fullName = 'El nombre es requerido.'
+    if (!formData.dni.trim()) errors.dni = 'El DNI es requerido.'
+    if (!formData.address.trim()) errors.address = 'El domicilio es requerido.'
+    if (!formData.city.trim()) errors.city = 'La ciudad es requerida.'
+    if (!formData.phone.trim()) errors.phone = 'El teléfono es requerido.'
+    if (!formData.email.trim()) errors.email = 'El email es requerido.'
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'El formato del email es inválido.'
+    
+    // Validate a few key questions
+    if (!formData.q1.trim()) errors.q1 = 'Respuesta requerida.'
+    if (!formData.q3) errors.q3 = 'Respuesta requerida.'
+    if (!formData.q9.trim()) errors.q9 = 'Respuesta requerida.'
+    if (!formData.q11) errors.q11 = 'Respuesta requerida.'
+    if (!formData.q22) errors.q22 = 'Respuesta requerida.'
+    if (!formData.q23) errors.q23 = 'Respuesta requerida.'
+    if (!formData.q25) errors.q25 = 'Respuesta requerida.'
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) {
+      const firstErrorKey = Object.keys(formErrors)[0]
+      if (firstErrorKey) {
+        const errorElement = document.getElementById(firstErrorKey)
+        if(errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }
+      return
+    }
+    
+    setIsSubmitting(true)
+
+    try {
+      // Create FormData to send files
+      const formDataToSend = new FormData()
+      
+      // Add all form fields
+      Object.keys(formData).forEach(key => {
+        if (formData[key as keyof typeof formData] !== null) {
+          formDataToSend.append(key, formData[key as keyof typeof formData] as string)
+        }
+      })
+      
+      // Collect all files from all image inputs
+      const allFiles = imageInputs
+        .map(input => input.files)
+        .flat()
+      
+      // Add uploaded files
+      allFiles.forEach((file, index) => {
+        formDataToSend.append(`file_${index}`, file)
+      })
+      
+      // Add file count
+      formDataToSend.append('fileCount', allFiles.length.toString())
+
+      const response = await fetch('/api/adoptar', {
+        method: 'POST',
+        body: formDataToSend, // Send as FormData instead of JSON
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setShowSuccessModal(true)
+      } else {
+        alert('Error al enviar el formulario: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error)
+      alert('Error al enviar el formulario. Por favor, inténtalo de nuevo.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen flex flex-col items-center justify-center p-0 sm:p-6 md:p-8 bg-gray-50">
+      {showSuccessModal && (
+        <Modal title="¡Formulario Enviado!" onClose={() => setShowSuccessModal(false)}>
+          <p>¡Gracias por tu interés en adoptar!</p>
+          <p className="mt-2">El formulario ha sido enviado correctamente a nuestro equipo.</p>
+          <p className="mt-2 font-semibold">Nos pondremos en contacto contigo pronto para continuar con el proceso de adopción.</p>
+          {uploadedFiles.length > 0 && (
+            <p className="mt-2 text-sm text-green-600">✓ Las fotos han sido enviadas junto con el formulario.</p>
+          )}
+        </Modal>
+      )}
+      <div className="w-full max-w-3xl bg-white p-4 sm:p-8 rounded-none sm:rounded-xl shadow-none sm:shadow-lg">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Formulario de Preadopción</h1>
+          <p className="text-gray-500 mt-2">Gracias por considerar darle un hogar a uno de nuestros rescatados.</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="space-y-4">
+            {/* Personal Info Section */}
+            <div className="space-y-4 p-5 border border-gray-200 rounded-lg">
+              <h2 className="text-lg font-semibold border-b pb-2 mb-4">Datos Personales</h2>
+              <FormField id="fullName" label={questions.fullName}>
+                <Input id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} required />
+                {formErrors.fullName && <p className="text-red-500 text-xs">{formErrors.fullName}</p>}
+              </FormField>
+              <FormField id="dni" label={questions.dni}>
+                <Input id="dni" name="dni" value={formData.dni} onChange={handleChange} required />
+                {formErrors.dni && <p className="text-red-500 text-xs">{formErrors.dni}</p>}
+              </FormField>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField id="address" label={questions.address}>
+                  <Input id="address" name="address" value={formData.address} onChange={handleChange} required />
+                  {formErrors.address && <div className="min-h-[20px]">
+                    <p className="text-red-500 text-xs pt-1">{formErrors.address}</p>
+                  </div>}
+                </FormField>
+                <FormField id="neighborhood" label={questions.neighborhood}>
+                  <Input id="neighborhood" name="neighborhood" value={formData.neighborhood} onChange={handleChange} />
+                  {formErrors.address && <div className="min-h-[20px]" />}
+                </FormField>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField id="city" label={questions.city}>
+                  <Input id="city" name="city" value={formData.city} onChange={handleChange} required />
+                  {formErrors.city && <div className="min-h-[20px]">
+                    <p className="text-red-500 text-xs pt-1">{formErrors.city}</p>
+                  </div>}
+                </FormField>
+                <FormField id="phone" label={questions.phone}>
+                  <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} required />
+                  {formErrors.phone && <div className="min-h-[20px]">
+                    <p className="text-red-500 text-xs pt-1">{formErrors.phone}</p>
+                  </div>}
+                </FormField>
+              </div>
+              <FormField id="email" label={questions.email}>
+                <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+                {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
+              </FormField>
+              <FormField id="socialMedia" label={questions.socialMedia}>
+                <Input id="socialMedia" name="socialMedia" value={formData.socialMedia} onChange={handleChange} />
+              </FormField>
+            </div>
+
+            {/* Questions Section */}
+            <div className="space-y-4 p-5 border border-gray-200 rounded-lg">
+              <h2 className="text-lg font-semibold border-b pb-2 mb-4">Cuestionario</h2>
+              
+              <FormField id="q1" label={questions.q1}>
+                <Input id="q1" name="q1" value={formData.q1} onChange={handleChange} required />
+                {formErrors.q1 && <p className="text-red-500 text-xs">{formErrors.q1}</p>}
+              </FormField>
+
+              <FormField id="q2" label={questions.q2}>
+                <Textarea id="q2" name="q2" value={formData.q2} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q3" label={questions.q3}>
+                <RadioGroup 
+                  name="q3" 
+                  options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
+                  selectedValue={formData.q3} 
+                  onChange={handleRadioChange} 
+                  required 
+                />
+                {formErrors.q3 && <p className="text-red-500 text-xs">{formErrors.q3}</p>}
+              </FormField>
+
+              <FormField id="q4" label={questions.q4}>
+                <Textarea id="q4" name="q4" value={formData.q4} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q5" label={questions.q5}>
+                <Textarea id="q5" name="q5" value={formData.q5} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q6" label={questions.q6}>
+                <Textarea id="q6" name="q6" value={formData.q6} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q7" label={questions.q7}>
+                <Textarea id="q7" name="q7" value={formData.q7} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q8" label={questions.q8}>
+                <Textarea id="q8" name="q8" value={formData.q8} onChange={handleChange} />
+              </FormField>
+              
+              <FormField id="q9" label={questions.q9}>
+                <Textarea id="q9" name="q9" value={formData.q9} onChange={handleChange} required />
+                {formErrors.q9 && <p className="text-red-500 text-xs">{formErrors.q9}</p>}
+              </FormField>
+              
+              <FormField id="q10" label={questions.q10}>
+                <Textarea id="q10" name="q10" value={formData.q10} onChange={handleChange} />
+              </FormField>
+              
+              <FormField id="q11" label={questions.q11}>
+                <RadioGroup 
+                  name="q11" 
+                  options={[{value: 'Casa', label: 'Casa'}, {value: 'Departamento', label: 'Departamento'}]} 
+                  selectedValue={formData.q11} 
+                  onChange={handleRadioChange} 
+                  required 
+                />
+                {formErrors.q11 && <p className="text-red-500 text-xs">{formErrors.q11}</p>}
+              </FormField>
+
+              <FormField id="q12" label={questions.q12}>
+                <RadioGroup 
+                  name="q12" 
+                  options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
+                  selectedValue={formData.q12} 
+                  onChange={handleRadioChange} 
+                />
+              </FormField>
+
+              <FormField id="q13" label={questions.q13}>
+                <Textarea id="q13" name="q13" value={formData.q13} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q14" label={questions.q14}>
+                <Textarea id="q14" name="q14" value={formData.q14} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q15" label={questions.q15}>
+                <Textarea id="q15" name="q15" value={formData.q15} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q16" label={questions.q16}>
+                <Textarea id="q16" name="q16" value={formData.q16} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q17" label={questions.q17}>
+                <Textarea id="q17" name="q17" value={formData.q17} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q18" label={questions.q18}>
+                <Textarea id="q18" name="q18" value={formData.q18} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q19" label={questions.q19}>
+                <Textarea id="q19" name="q19" value={formData.q19} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q20" label={questions.q20}>
+                <Textarea id="q20" name="q20" value={formData.q20} onChange={handleChange} />
+              </FormField>
+
+              <FormField id="q21" label={questions.q21}>
+                <Textarea id="q21" name="q21" value={formData.q21} onChange={handleChange} />
+              </FormField>
+              
+              <FormField id="q22" label={questions.q22}>
+                <RadioGroup 
+                  name="q22" 
+                  options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
+                  selectedValue={formData.q22} 
+                  onChange={handleRadioChange} 
+                  required 
+                />
+                {formErrors.q22 && <p className="text-red-500 text-xs">{formErrors.q22}</p>}
+              </FormField>
+
+              <FormField id="q23" label={questions.q23}>
+                <RadioGroup 
+                  name="q23" 
+                  options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
+                  selectedValue={formData.q23} 
+                  onChange={handleRadioChange} 
+                  required 
+                />
+                {formErrors.q23 && <p className="text-red-500 text-xs">{formErrors.q23}</p>}
+              </FormField>
+              
+              <FormField id="q24" label={questions.q24}>
+                <div className="space-y-3">
+                  {imageInputs.map((input, index) => (
+                    <div key={input.id} className="flex items-center gap-2">
+                      <Input 
+                        id={`q24_${input.id}`} 
+                        name={`q24_${input.id}`} 
+                        type="file" 
+                        onChange={(e) => {
+                          const target = e.target as HTMLInputElement
+                          handleImageChange(input.id, target.files)
+                        }} 
+                        accept="image/*" 
+                        multiple 
+                      />
+                      {imageInputs.length > 1 && (
+                        <Button 
+                          type="button" 
+                          onClick={() => removeImageInput(input.id)}
+                          className="size-8 p-0 bg-red-500 hover:bg-red-600 text-white flex items-center justify-center"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button 
+                    type="button" 
+                    onClick={addImageInput}
+                    className="px-3 py-1 text-sm"
+                  >
+                    + Agregar más fotos
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {uploadedFiles.length > 0 
+                      ? `${uploadedFiles.length} archivo(s) seleccionado(s): ${uploadedFiles.map(f => f.name).join(', ')}`
+                      : 'Seleccione las fotos del lugar donde vivirá el perro'
+                    }
+                  </p>
+                </div>
+              </FormField>
+              
+              <FormField id="q25" label={questions.q25}>
+                <RadioGroup 
+                  name="q25" 
+                  options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
+                  selectedValue={formData.q25} 
+                  onChange={handleRadioChange} 
+                  required 
+                />
+                {formErrors.q25 && <p className="text-red-500 text-xs">{formErrors.q25}</p>}
+              </FormField>
+            </div>
+
+            <div className="flex justify-end mb-3 md:mb-0">
+              <Button type="submit" disabled={isSubmitting} className="min-w-24">
+                {isSubmitting ? 'Enviando...' : 'Enviar'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
-  );
-}
+  )
+} 

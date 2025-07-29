@@ -1,0 +1,25 @@
+<svg viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Dog outline in black -->
+  <path 
+    d="M 100 600 C 150 500, 200 450, 300 450
+       C 400 450, 450 500, 480 520
+       M 480 520 C 500 540, 520 560, 540 580
+       M 540 580 L 550 600"
+    stroke="black" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Head and nose -->
+  <path 
+    d="M 300 450 C 290 430, 285 410, 280 400
+       C 275 390, 270 380, 260 380"
+    stroke="black" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Leash -->
+  <path 
+    d="M 540 580 C 600 650, 650 680, 700 700" 
+    stroke="black" stroke-width="6" fill="none" stroke-linecap="round" />
+
+  <!-- Red collar -->
+  <path 
+    d="M 290 430 C 305 435, 310 440, 320 445" 
+    stroke="red" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
