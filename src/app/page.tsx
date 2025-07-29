@@ -7,7 +7,7 @@ import { Button } from './ui/components/button'
 import { FormField } from './ui/components/form-field'
 import { Modal } from './ui/components/modal'
 import { LoadingSkeleton } from './ui/components/loading-skeleton'
-import { DropzoneUpload } from './ui/components/dropzone-upload'
+import { DropzoneUpload } from './ui/components/image-uploader/dropzone-upload'
 
 export default function AdoptionPage(): React.ReactElement {
   const [isMounted, setIsMounted] = useState(false)
