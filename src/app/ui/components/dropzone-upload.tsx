@@ -327,10 +327,28 @@ export function DropzoneUpload({
             {files.map((file, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-xs text-gray-500">
-                      {file.name.split('.').pop()?.toUpperCase() || 'IMG'}
-                    </span>
+                  <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                    {file.type.startsWith('image/') ? (
+                      <>
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            target.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                        <span className="text-xs text-gray-500 hidden">
+                          {file.name.split('.').pop()?.toUpperCase() || 'IMG'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        {file.name.split('.').pop()?.toUpperCase() || 'IMG'}
+                      </span>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-700 truncate max-w-[200px]">
