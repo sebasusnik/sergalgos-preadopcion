@@ -260,7 +260,7 @@ export function DropzoneUpload({
           <div className="space-y-2">
             <p className="text-sm text-gray-600">
               {isProcessing 
-                ? 'Procesando y comprimiendo...' 
+                ? 'Procesando...' 
                 : isDragActive 
                   ? 'Suelta las fotos aquí...' 
                   : 'Arrastra las fotos aquí o toca para seleccionar'
