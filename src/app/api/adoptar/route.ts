@@ -12,7 +12,15 @@ export async function POST(request: NextRequest) {
     
     for (const [key, value] of formData.entries()) {
       if (key.startsWith('file_')) {
-        files.push(value as File)
+        // Handle File objects and FormDataEntryValue
+        if (value instanceof File) {
+          files.push(value)
+          console.log(`Added file: ${key}, name: ${value.name}`)
+        } else if (typeof value === 'object' && value !== null && 'arrayBuffer' in value) {
+          // Handle other file-like objects that have arrayBuffer method
+          files.push(value as File)
+          console.log(`Added file-like object: ${key}, name: ${(value as File).name}`)
+        }
       } else if (key !== 'fileCount') {
         formFields[key] = value as string
       }
@@ -193,14 +201,28 @@ export async function POST(request: NextRequest) {
 
     // Add image files as separate attachments
     for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const buffer = await file.arrayBuffer()
-      const base64 = Buffer.from(buffer).toString('base64')
-      attachments.push({
-        filename: `foto-${i + 1}-${formFields.fullName.replace(/\s+/g, '-')}.${file.name.split('.').pop()}`,
-        content: base64,
-        encoding: 'base64'
-      })
+      try {
+        const file = files[i]
+        
+        // Skip empty files
+        if (!file) {
+          console.warn(`Skipping empty file at index ${i}`)
+          continue
+        }
+        
+        const buffer = await file.arrayBuffer()
+        const base64 = Buffer.from(buffer).toString('base64')
+        const fileExtension = file.name ? file.name.split('.').pop() || 'jpg' : 'jpg'
+        attachments.push({
+          filename: `foto-${i + 1}-${formFields.fullName.replace(/\s+/g, '-')}.${fileExtension}`,
+          content: base64,
+          encoding: 'base64'
+        })
+        console.log(`Successfully processed file ${i}: ${file.name}`)
+      } catch (error) {
+        console.error(`Error processing file ${i}:`, error)
+        // Continue with other files even if one fails
+      }
     }
 
     // Email content
@@ -245,7 +267,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         success: false, 
-        message: 'Error al enviar el formulario' 
+        message: error instanceof Error ? error.message : 'Error al enviar el formulario' 
       },
       { status: 500 }
     )
