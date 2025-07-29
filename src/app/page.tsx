@@ -1,14 +1,16 @@
 'use client'
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Input } from './ui/components/input'
 import { Textarea } from './ui/components/textarea'
 import { RadioGroup } from './ui/components/radio-group'
 import { Button } from './ui/components/button'
 import { FormField } from './ui/components/form-field'
 import { Modal } from './ui/components/modal'
-import { Trash2 } from 'lucide-react'
+import { LoadingSkeleton } from './ui/components/loading-skeleton'
+import { DropzoneUpload } from './ui/components/dropzone-upload'
 
 export default function AdoptionPage(): React.ReactElement {
+  const [isMounted, setIsMounted] = useState(false)
   const [formData, setFormData] = useState({
     // Personal Info
     fullName: '',
@@ -25,10 +27,14 @@ export default function AdoptionPage(): React.ReactElement {
     q20: '', q21: '', q22: '', q23: '', q24: null as string | null, q25: ''
   })
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
-  const [imageInputs, setImageInputs] = useState([{ id: 0, files: [] as File[] }])
+  const [fileError, setFileError] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const questions = {
     // Personal Info
@@ -72,12 +78,7 @@ export default function AdoptionPage(): React.ReactElement {
     const { name, value, type } = e.target
     if (type === 'file') {
       const target = e.target as HTMLInputElement
-      if (name === 'q24') {
-        // Handle multiple files for q24
-        const files = Array.from(target.files || [])
-        setUploadedFiles(files)
-        setFormData(prev => ({ ...prev, [name]: files.length > 0 ? 'Archivos adjuntos' : null }))
-      } else {
+      if (name !== 'q24') {
         setFormData(prev => ({ ...prev, [name]: target.files?.[0] || null }))
       }
     } else {
@@ -106,37 +107,10 @@ export default function AdoptionPage(): React.ReactElement {
     }
   }
 
-  const addImageInput = () => {
-    const newId = Math.max(...imageInputs.map(input => input.id)) + 1
-    setImageInputs(prev => [...prev, { id: newId, files: [] }])
-  }
-
-  const removeImageInput = (id: number) => {
-    setImageInputs(prev => prev.filter(input => input.id !== id))
-  }
-
-  const handleImageChange = (id: number, files: FileList | null) => {
-    const fileArray = files ? Array.from(files) : []
-    setImageInputs(prev => {
-      const updatedInputs = prev.map(input => 
-        input.id === id ? { ...input, files: fileArray } : input
-      )
-      
-      // Update the main uploadedFiles state with all files from all inputs
-      const allFiles = updatedInputs
-        .map(input => input.files)
-        .flat()
-      setUploadedFiles(allFiles)
-      
-      // Update formData to indicate files are attached
-      setFormData(formData => ({ 
-        ...formData, 
-        q24: allFiles.length > 0 ? 'Archivos adjuntos' : null 
-      }))
-      
-      return updatedInputs
-    })
-  }
+  // Update formData when files change
+  React.useEffect(() => {
+    setFormData(prev => ({ ...prev, q24: uploadedFiles.length > 0 ? 'Archivos adjuntos' : null }))
+  }, [uploadedFiles])
 
   const validateForm = () => {
     const errors: Record<string, string> = {}
@@ -188,18 +162,13 @@ export default function AdoptionPage(): React.ReactElement {
         }
       })
       
-      // Collect all files from all image inputs
-      const allFiles = imageInputs
-        .map(input => input.files)
-        .flat()
-      
       // Add uploaded files
-      allFiles.forEach((file, index) => {
+      uploadedFiles.forEach((file, index) => {
         formDataToSend.append(`file_${index}`, file)
       })
       
       // Add file count
-      formDataToSend.append('fileCount', allFiles.length.toString())
+      formDataToSend.append('fileCount', uploadedFiles.length.toString())
 
       const response = await fetch('/api/adoptar', {
         method: 'POST',
@@ -219,6 +188,11 @@ export default function AdoptionPage(): React.ReactElement {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Don't render until mounted to avoid hydration issues
+  if (!isMounted) {
+    return <LoadingSkeleton />
   }
 
   return (
@@ -419,45 +393,14 @@ export default function AdoptionPage(): React.ReactElement {
               </FormField>
               
               <FormField id="q24" label={questions.q24}>
-                <div className="space-y-3">
-                  {imageInputs.map((input, index) => (
-                    <div key={input.id} className="flex items-center gap-2">
-                      <Input 
-                        id={`q24_${input.id}`} 
-                        name={`q24_${input.id}`} 
-                        type="file" 
-                        onChange={(e) => {
-                          const target = e.target as HTMLInputElement
-                          handleImageChange(input.id, target.files)
-                        }} 
-                        accept="image/*" 
-                        multiple 
-                      />
-                      {imageInputs.length > 1 && (
-                        <Button 
-                          type="button" 
-                          onClick={() => removeImageInput(input.id)}
-                          className="size-8 p-0 bg-red-500 hover:bg-red-600 text-white flex items-center justify-center"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  <Button 
-                    type="button" 
-                    onClick={addImageInput}
-                    className="px-3 py-1 text-sm"
-                  >
-                    + Agregar más fotos
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {uploadedFiles.length > 0 
-                      ? `${uploadedFiles.length} archivo(s) seleccionado(s): ${uploadedFiles.map(f => f.name).join(', ')}`
-                      : 'Seleccione las fotos del lugar donde vivirá el perro'
-                    }
-                  </p>
-                </div>
+                <DropzoneUpload
+                  files={uploadedFiles}
+                  onFilesChange={setUploadedFiles}
+                  error={fileError}
+                  onError={setFileError}
+                  maxSize={5 * 1024 * 1024} // 5MB
+                  maxFiles={10}
+                />
               </FormField>
               
               <FormField id="q25" label={questions.q25}>
