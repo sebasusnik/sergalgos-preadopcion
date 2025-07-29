@@ -33,7 +33,7 @@ export default function AdoptionPage(): React.ReactElement {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [debugLogs, setDebugLogs] = useState<string[]>([])
 
-  const debug = process.env.NODE_ENV === 'development'
+  const debug = true // Force debug on for production debugging
 
   // Debug logging function
   const addDebugLog = (message: string) => {
