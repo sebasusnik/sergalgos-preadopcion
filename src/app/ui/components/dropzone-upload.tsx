@@ -119,6 +119,23 @@ export function DropzoneUpload({
         if (target.files && target.files.length > 0) {
           const fileArray = Array.from(target.files)
           addDebugLog(`Files selected: ${fileArray.map(f => f.name).join(', ')}`)
+          
+          // Check if adding these files would exceed maxFiles
+          const totalFiles = files.length + fileArray.length
+          if (totalFiles > maxFiles) {
+            addDebugLog(`Too many files: ${totalFiles} > ${maxFiles}`)
+            setLocalError(`Máximo ${maxFiles} archivos permitidos`)
+            if (onError) {
+              onError(`Máximo ${maxFiles} archivos permitidos`)
+            }
+            setIsProcessing(false)
+            if (document.body.contains(input)) {
+              document.body.removeChild(input)
+            }
+            return
+          }
+          
+          // Add new files to existing files
           onFilesChange([...files, ...fileArray])
         } else {
           addDebugLog('No files selected')

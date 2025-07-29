@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
           // Handle other file-like objects that have arrayBuffer method
           files.push(value as File)
           console.log(`Added file-like object: ${key}, name: ${(value as File).name}, size: ${(value as File).size}`)
+        } else if (typeof value === 'object' && value !== null && 'name' in value && 'size' in value) {
+          // Handle mobile browser file objects that might not be instanceof File
+          console.log(`Adding mobile file object: ${key}, type: ${typeof value}, constructor: ${(value as any).constructor?.name}`)
+          files.push(value as File)
+          console.log(`Added mobile file: ${key}, name: ${(value as File).name}, size: ${(value as File).size}`)
         } else {
           console.log(`Skipping invalid file object: ${key}, type: ${typeof value}, value: ${JSON.stringify(value)}`)
         }
@@ -39,6 +44,15 @@ export async function POST(request: NextRequest) {
     console.log(`Total files: ${files.length}`)
     console.log(`Files details:`, files.map(f => ({ name: f.name, size: f.size, type: f.type })))
     console.log(`Total form fields: ${Object.keys(formFields).length}`)
+
+    // Check total file size to prevent memory issues
+    const totalFileSize = files.reduce((total, file) => total + file.size, 0)
+    const maxTotalSize = 50 * 1024 * 1024 // 50MB total limit
+    console.log(`Total file size: ${totalFileSize} bytes (${(totalFileSize / 1024 / 1024).toFixed(2)}MB)`)
+    
+    if (totalFileSize > maxTotalSize) {
+      throw new Error(`Total file size too large: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB > ${maxTotalSize / 1024 / 1024}MB`)
+    }
 
     // Check required environment variables
     console.log('Checking environment variables...')
