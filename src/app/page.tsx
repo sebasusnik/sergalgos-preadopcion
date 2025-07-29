@@ -224,7 +224,7 @@ export default function AdoptionPage(): React.ReactElement {
                 {formErrors.fullName && <p className="text-red-500 text-xs">{formErrors.fullName}</p>}
               </FormField>
               <FormField id="dni" label={questions.dni}>
-                <Input id="dni" name="dni" value={formData.dni} onChange={handleChange} required />
+                <Input id="dni" name="dni" type="number" value={formData.dni} onChange={handleChange} required />
                 {formErrors.dni && <p className="text-red-500 text-xs">{formErrors.dni}</p>}
               </FormField>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -267,7 +267,7 @@ export default function AdoptionPage(): React.ReactElement {
               <h2 className="text-lg font-semibold border-b pb-2 mb-4">Cuestionario</h2>
               
               <FormField id="q1" label={questions.q1}>
-                <Input id="q1" name="q1" value={formData.q1} onChange={handleChange} required />
+                <Input id="q1" name="q1" type="number" value={formData.q1} onChange={handleChange} required />
                 {formErrors.q1 && <p className="text-red-500 text-xs">{formErrors.q1}</p>}
               </FormField>
 
