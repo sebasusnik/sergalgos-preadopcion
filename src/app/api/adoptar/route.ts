@@ -16,19 +16,19 @@ export async function POST(request: NextRequest) {
     
     console.log('Processing form entries...')
     for (const [key, value] of formData.entries()) {
-      console.log(`Processing key: ${key}, type: ${typeof value}`)
+      console.log(`Processing key: ${key}, type: ${typeof value}, constructor: ${value?.constructor?.name}`)
       
       if (key.startsWith('file_')) {
         // Handle File objects and FormDataEntryValue
         if (value instanceof File) {
           files.push(value)
-          console.log(`Added file: ${key}, name: ${value.name}, size: ${value.size}`)
+          console.log(`Added file: ${key}, name: ${value.name}, size: ${value.size}, type: ${value.type}`)
         } else if (typeof value === 'object' && value !== null && 'arrayBuffer' in value) {
           // Handle other file-like objects that have arrayBuffer method
           files.push(value as File)
-          console.log(`Added file-like object: ${key}, name: ${(value as File).name}`)
+          console.log(`Added file-like object: ${key}, name: ${(value as File).name}, size: ${(value as File).size}`)
         } else {
-          console.log(`Skipping invalid file object: ${key}, type: ${typeof value}`)
+          console.log(`Skipping invalid file object: ${key}, type: ${typeof value}, value: ${JSON.stringify(value)}`)
         }
       } else if (key !== 'fileCount') {
         formFields[key] = value as string
@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`Total files: ${files.length}`)
+    console.log(`Files details:`, files.map(f => ({ name: f.name, size: f.size, type: f.type })))
     console.log(`Total form fields: ${Object.keys(formFields).length}`)
 
     // Check required environment variables
@@ -241,18 +242,38 @@ export async function POST(request: NextRequest) {
           continue
         }
         
-        console.log(`Processing file ${i}: ${file.name}, size: ${file.size}`)
+        console.log(`Processing file ${i}: ${file.name}, size: ${file.size}, type: ${file.type}`)
+        
+        // Check if file has required methods
+        if (!file.arrayBuffer) {
+          console.error(`File ${i} missing arrayBuffer method:`, file)
+          continue
+        }
+        
+        console.log(`Calling arrayBuffer() on file ${i}...`)
         const buffer = await file.arrayBuffer()
+        console.log(`Got buffer for file ${i}, size: ${buffer.byteLength}`)
+        
         const base64 = Buffer.from(buffer).toString('base64')
+        console.log(`Converted file ${i} to base64, length: ${base64.length}`)
+        
         const fileExtension = file.name ? file.name.split('.').pop() || 'jpg' : 'jpg'
-        attachments.push({
+        const attachment = {
           filename: `foto-${i + 1}-${formFields.fullName.replace(/\s+/g, '-')}.${fileExtension}`,
           content: base64,
           encoding: 'base64'
-        })
-        console.log(`Successfully processed file ${i}: ${file.name}`)
+        }
+        
+        attachments.push(attachment)
+        console.log(`Successfully processed file ${i}: ${file.name}, attachment filename: ${attachment.filename}`)
       } catch (error) {
         console.error(`Error processing file ${i}:`, error)
+        console.error(`File ${i} details:`, {
+          name: files[i]?.name,
+          size: files[i]?.size,
+          type: files[i]?.type,
+          hasArrayBuffer: typeof files[i]?.arrayBuffer === 'function'
+        })
         // Continue with other files even if one fails
       }
     }

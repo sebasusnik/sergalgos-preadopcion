@@ -186,6 +186,8 @@ export default function AdoptionPage(): React.ReactElement {
       addDebugLog(`Adding ${uploadedFiles.length} files to FormData`)
       uploadedFiles.forEach((file, index) => {
         addDebugLog(`Adding file ${index}: ${file.name} (${file.size} bytes, type: ${file.type})`)
+        addDebugLog(`File ${index} constructor: ${file.constructor.name}`)
+        addDebugLog(`File ${index} has arrayBuffer: ${typeof file.arrayBuffer === 'function'}`)
         formDataToSend.append(`file_${index}`, file)
       })
       
@@ -194,6 +196,8 @@ export default function AdoptionPage(): React.ReactElement {
       addDebugLog(`Added fileCount: ${uploadedFiles.length}`)
 
       addDebugLog('Sending request to /api/adoptar')
+      addDebugLog(`FormData entries count: ${Array.from(formDataToSend.entries()).length}`)
+      
       const response = await fetch('/api/adoptar', {
         method: 'POST',
         body: formDataToSend, // Send as FormData instead of JSON
