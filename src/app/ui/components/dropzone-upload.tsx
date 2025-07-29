@@ -1,6 +1,6 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react'
+import React, { useCallback, useState, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, AlertCircle, Trash2, X, Bug } from 'lucide-react'
+import { Upload, AlertCircle, Trash2, X } from 'lucide-react'
 import { Button } from './button'
 
 interface DropzoneUploadProps {
@@ -10,7 +10,78 @@ interface DropzoneUploadProps {
   onError?: (error: string) => void
   maxSize?: number // in bytes
   maxFiles?: number
-  debug?: boolean
+}
+
+// Image compression function
+const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.7): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    
+    img.onload = () => {
+      // Calculate new dimensions maintaining aspect ratio
+      let { width, height } = img
+      
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height)
+        width *= ratio
+        height *= ratio
+      }
+      
+      // Set canvas dimensions
+      canvas.width = width
+      canvas.height = height
+      
+      // Draw and compress image
+      ctx?.drawImage(img, 0, 0, width, height)
+      
+      // Convert to blob with compression
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            // Create new file with compressed data
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            })
+            resolve(compressedFile)
+          } else {
+            reject(new Error('Failed to compress image'))
+          }
+        },
+        'image/jpeg',
+        quality
+      )
+    }
+    
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+// Batch compress images
+const compressImages = async (files: File[]): Promise<File[]> => {
+  const compressedFiles: File[] = []
+  
+  for (const file of files) {
+    try {
+      // Only compress image files
+      if (file.type.startsWith('image/')) {
+        const compressedFile = await compressImage(file)
+        compressedFiles.push(compressedFile)
+      } else {
+        // Keep non-image files as-is
+        compressedFiles.push(file)
+      }
+    } catch (error) {
+      console.error('Error compressing file:', file.name, error)
+      // If compression fails, use original file
+      compressedFiles.push(file)
+    }
+  }
+  
+  return compressedFiles
 }
 
 export function DropzoneUpload({
@@ -19,34 +90,13 @@ export function DropzoneUpload({
   error,
   onError,
   maxSize = 5 * 1024 * 1024,
-  maxFiles = 10,
-  debug = process.env.NODE_ENV === 'development'
+  maxFiles = 10
 }: DropzoneUploadProps) {
   const [localError, setLocalError] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [debugLogs, setDebugLogs] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Debug logging function
-  const addDebugLog = (message: string) => {
-    if (debug) {
-      const timestamp = new Date().toLocaleTimeString()
-      const logMessage = `[${timestamp}] ${message}`
-      console.log(logMessage)
-      setDebugLogs(prev => [...prev.slice(-9), logMessage]) // Keep last 10 logs
-    }
-  }
-
-  // Debug logging
-  useEffect(() => {
-    if (debug) {
-      addDebugLog(`Component state: files=${files.length}, processing=${isProcessing}, errors=${localError ? 'yes' : 'no'}`)
-    }
-  }, [files, localError, isProcessing, debug])
-
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
-    addDebugLog(`onDrop called: accepted=${acceptedFiles.length}, rejected=${rejectedFiles.length}`)
-
+  const onDrop = useCallback(async (acceptedFiles: File[], rejectedFiles: any[]) => {
     if (rejectedFiles.length > 0) {
       const errorMessages = rejectedFiles.map(({ file, errors }) => {
         const errorList = errors.map((error: any) => {
@@ -72,11 +122,21 @@ export function DropzoneUpload({
       }
     }
 
-    // Add accepted files
+    // Compress and add accepted files
     if (acceptedFiles.length > 0) {
-      onFilesChange([...files, ...acceptedFiles])
+      setIsProcessing(true)
+      try {
+        const compressedFiles = await compressImages(acceptedFiles)
+        onFilesChange([...files, ...compressedFiles])
+      } catch (error) {
+        console.error('Error processing files:', error)
+        // If compression fails, use original files
+        onFilesChange([...files, ...acceptedFiles])
+      } finally {
+        setIsProcessing(false)
+      }
     }
-  }, [files, onFilesChange, maxSize, onError, debug])
+  }, [files, onFilesChange, maxSize, onError])
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
@@ -89,19 +149,13 @@ export function DropzoneUpload({
     disabled: files.length >= maxFiles || isProcessing
   })
 
-  const handleGallerySelect = (e: React.MouseEvent) => {
+  const handleGallerySelect = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
-    addDebugLog('handleGallerySelect called')
-    
-    if (isProcessing) {
-      addDebugLog('Already processing, ignoring click')
-      return
-    }
+    if (isProcessing) return
     
     setIsProcessing(true)
-    addDebugLog('Set processing to true')
     
     try {
       // Create a new file input for gallery selection
@@ -110,20 +164,14 @@ export function DropzoneUpload({
       input.accept = 'image/*'
       input.style.display = 'none'
       
-      addDebugLog('Created file input element')
-      
-      input.onchange = (event) => {
-        addDebugLog('File input onchange triggered')
-        
+      input.onchange = async (event) => {
         const target = event.target as HTMLInputElement
         if (target.files && target.files.length > 0) {
           const fileArray = Array.from(target.files)
-          addDebugLog(`Files selected: ${fileArray.map(f => f.name).join(', ')}`)
           
           // Check if adding these files would exceed maxFiles
           const totalFiles = files.length + fileArray.length
           if (totalFiles > maxFiles) {
-            addDebugLog(`Too many files: ${totalFiles} > ${maxFiles}`)
             setLocalError(`Máximo ${maxFiles} archivos permitidos`)
             if (onError) {
               onError(`Máximo ${maxFiles} archivos permitidos`)
@@ -135,21 +183,23 @@ export function DropzoneUpload({
             return
           }
           
-          // Add new files to existing files
-          onFilesChange([...files, ...fileArray])
-        } else {
-          addDebugLog('No files selected')
+          try {
+            // Compress files before adding
+            const compressedFiles = await compressImages(fileArray)
+            onFilesChange([...files, ...compressedFiles])
+          } catch (error) {
+            console.error('Error processing gallery files:', error)
+            // If compression fails, use original files
+            onFilesChange([...files, ...fileArray])
+          }
         }
         setIsProcessing(false)
-        addDebugLog('Set processing to false')
         if (document.body.contains(input)) {
           document.body.removeChild(input)
-          addDebugLog('Removed input from DOM')
         }
       }
       
       input.oncancel = () => {
-        addDebugLog('File input cancelled')
         setIsProcessing(false)
         if (document.body.contains(input)) {
           document.body.removeChild(input)
@@ -158,7 +208,6 @@ export function DropzoneUpload({
       
       // Add error handling
       input.onerror = (error) => {
-        addDebugLog(`File input error: ${error}`)
         setIsProcessing(false)
         if (document.body.contains(input)) {
           document.body.removeChild(input)
@@ -166,22 +215,18 @@ export function DropzoneUpload({
       }
       
       document.body.appendChild(input)
-      addDebugLog('Added input to DOM and clicking')
       input.click()
     } catch (error) {
-      addDebugLog(`Error in handleGallerySelect: ${error}`)
       setIsProcessing(false)
     }
   }
 
   const removeFile = (index: number) => {
-    addDebugLog(`Removing file at index: ${index}`)
     const newFiles = files.filter((_, i) => i !== index)
     onFilesChange(newFiles)
   }
 
   const clearAllFiles = () => {
-    addDebugLog('Clearing all files')
     onFilesChange([])
     setLocalError('')
     if (onError) {
@@ -189,57 +234,10 @@ export function DropzoneUpload({
     }
   }
 
-  const clearDebugLogs = () => {
-    setDebugLogs([])
-  }
-
   const displayError = error || localError
 
   return (
     <div className="space-y-4">
-      {/* Debug Panel */}
-      {debug && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Bug className="h-4 w-4 text-yellow-600" />
-              <h4 className="text-sm font-medium text-yellow-800">Debug Info</h4>
-            </div>
-            <Button
-              type="button"
-              onClick={clearDebugLogs}
-              className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1"
-            >
-              Limpiar logs
-            </Button>
-          </div>
-          
-          <div className="text-xs text-yellow-700 space-y-1 mb-3">
-            <p>Files: {files.length}/{maxFiles}</p>
-            <p>Processing: {isProcessing ? 'Yes' : 'No'}</p>
-            <p>User Agent: {navigator.userAgent.substring(0, 50)}...</p>
-            <p>Mobile: {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Yes' : 'No'}</p>
-            <p>Max Size: {(maxSize / 1024 / 1024).toFixed(1)}MB</p>
-            {localError && <p>Local Error: {localError}</p>}
-            {error && <p>Prop Error: {error}</p>}
-          </div>
-
-          {/* Debug Logs */}
-          <div className="bg-black text-green-400 p-2 rounded text-xs font-mono max-h-40 overflow-y-auto">
-            <div className="mb-1 text-white">Debug Logs:</div>
-            {debugLogs.length === 0 ? (
-              <div className="text-gray-500">No logs yet...</div>
-            ) : (
-              debugLogs.map((log, index) => (
-                <div key={index} className="mb-1">
-                  {log}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Dropzone Area */}
       <div
         {...getRootProps()}
@@ -262,7 +260,7 @@ export function DropzoneUpload({
           <div className="space-y-2">
             <p className="text-sm text-gray-600">
               {isProcessing 
-                ? 'Procesando...' 
+                ? 'Procesando y comprimiendo...' 
                 : isDragActive 
                   ? 'Suelta las fotos aquí...' 
                   : 'Arrastra las fotos aquí o toca para seleccionar'
@@ -286,6 +284,8 @@ export function DropzoneUpload({
           <p className="text-xs text-gray-500">
             Formatos: JPG, PNG, WebP • Máximo {maxSize / 1024 / 1024}MB por archivo
             {maxFiles > 1 && ` • Máximo ${maxFiles} archivos`}
+            <br />
+            <span className="text-blue-600">Las imágenes se comprimirán automáticamente para optimizar el envío</span>
           </p>
           
           {files.length >= maxFiles && (
@@ -296,7 +296,7 @@ export function DropzoneUpload({
           
           {isProcessing && (
             <p className="text-xs text-blue-600">
-              Procesando archivos...
+              Comprimiendo imágenes...
             </p>
           )}
         </div>
@@ -351,6 +351,9 @@ export function DropzoneUpload({
                     </p>
                     <p className="text-xs text-gray-500">
                       {(file.size / 1024 / 1024).toFixed(1)} MB
+                      {file.type === 'image/jpeg' && file.size < 1024 * 1024 && (
+                        <span className="text-green-600 ml-1">✓ Comprimido</span>
+                      )}
                     </p>
                   </div>
                 </div>

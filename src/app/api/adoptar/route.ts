@@ -3,68 +3,46 @@ import nodemailer from 'nodemailer'
 import { jsPDF } from 'jspdf'
 
 export async function POST(request: NextRequest) {
-  console.log('API route called')
-  
   try {
-    console.log('Parsing form data...')
     const formData = await request.formData()
-    console.log('Form data parsed successfully')
     
     // Extract form fields
     const formFields: Record<string, string> = {}
     const files: File[] = []
     
-    console.log('Processing form entries...')
     for (const [key, value] of formData.entries()) {
-      console.log(`Processing key: ${key}, type: ${typeof value}, constructor: ${value?.constructor?.name}`)
-      
       if (key.startsWith('file_')) {
         // Handle File objects and FormDataEntryValue
         if (value instanceof File) {
           files.push(value)
-          console.log(`Added file: ${key}, name: ${value.name}, size: ${value.size}, type: ${value.type}`)
         } else if (typeof value === 'object' && value !== null && 'arrayBuffer' in value) {
           // Handle other file-like objects that have arrayBuffer method
           files.push(value as File)
-          console.log(`Added file-like object: ${key}, name: ${(value as File).name}, size: ${(value as File).size}`)
         } else if (typeof value === 'object' && value !== null && 'name' in value && 'size' in value) {
           // Handle mobile browser file objects that might not be instanceof File
-          console.log(`Adding mobile file object: ${key}, type: ${typeof value}, constructor: ${(value as any).constructor?.name}`)
           files.push(value as File)
-          console.log(`Added mobile file: ${key}, name: ${(value as File).name}, size: ${(value as File).size}`)
-        } else {
-          console.log(`Skipping invalid file object: ${key}, type: ${typeof value}, value: ${JSON.stringify(value)}`)
         }
       } else if (key !== 'fileCount') {
         formFields[key] = value as string
-        console.log(`Added form field: ${key} = ${value}`)
       }
     }
-
-    console.log(`Total files: ${files.length}`)
-    console.log(`Files details:`, files.map(f => ({ name: f.name, size: f.size, type: f.type })))
-    console.log(`Total form fields: ${Object.keys(formFields).length}`)
 
     // Check total file size to prevent memory issues
     const totalFileSize = files.reduce((total, file) => total + file.size, 0)
     const maxTotalSize = 50 * 1024 * 1024 // 50MB total limit
-    console.log(`Total file size: ${totalFileSize} bytes (${(totalFileSize / 1024 / 1024).toFixed(2)}MB)`)
     
     if (totalFileSize > maxTotalSize) {
       throw new Error(`Total file size too large: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB > ${maxTotalSize / 1024 / 1024}MB`)
     }
 
     // Check required environment variables
-    console.log('Checking environment variables...')
     if (!process.env.SMTP_USER) {
       throw new Error('SMTP_USER environment variable is not set')
     }
     if (!process.env.SMTP_PASS) {
       throw new Error('SMTP_PASS environment variable is not set')
     }
-    console.log('Environment variables OK')
 
-    console.log('Generating PDF...')
     // Generate PDF
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
 
@@ -207,13 +185,9 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log('PDF generated successfully')
-
     // Get PDF as base64
     const pdfBase64 = doc.output('datauristring').split(',')[1]
-    console.log('PDF converted to base64')
 
-    console.log('Configuring email transporter...')
     // Configure email transporter
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -233,8 +207,6 @@ export async function POST(request: NextRequest) {
       logger: false
     })
 
-    console.log('Email transporter configured')
-
     // Prepare attachments array
     const attachments: any[] = [
       {
@@ -244,7 +216,6 @@ export async function POST(request: NextRequest) {
       }
     ]
 
-    console.log('Processing file attachments...')
     // Add image files as separate attachments
     for (let i = 0; i < files.length; i++) {
       try {
@@ -252,25 +223,16 @@ export async function POST(request: NextRequest) {
         
         // Skip empty files
         if (!file) {
-          console.warn(`Skipping empty file at index ${i}`)
           continue
         }
-        
-        console.log(`Processing file ${i}: ${file.name}, size: ${file.size}, type: ${file.type}`)
         
         // Check if file has required methods
         if (!file.arrayBuffer) {
-          console.error(`File ${i} missing arrayBuffer method:`, file)
           continue
         }
         
-        console.log(`Calling arrayBuffer() on file ${i}...`)
         const buffer = await file.arrayBuffer()
-        console.log(`Got buffer for file ${i}, size: ${buffer.byteLength}`)
-        
         const base64 = Buffer.from(buffer).toString('base64')
-        console.log(`Converted file ${i} to base64, length: ${base64.length}`)
-        
         const fileExtension = file.name ? file.name.split('.').pop() || 'jpg' : 'jpg'
         const attachment = {
           filename: `foto-${i + 1}-${formFields.fullName.replace(/\s+/g, '-')}.${fileExtension}`,
@@ -279,20 +241,10 @@ export async function POST(request: NextRequest) {
         }
         
         attachments.push(attachment)
-        console.log(`Successfully processed file ${i}: ${file.name}, attachment filename: ${attachment.filename}`)
       } catch (error) {
-        console.error(`Error processing file ${i}:`, error)
-        console.error(`File ${i} details:`, {
-          name: files[i]?.name,
-          size: files[i]?.size,
-          type: files[i]?.type,
-          hasArrayBuffer: typeof files[i]?.arrayBuffer === 'function'
-        })
         // Continue with other files even if one fails
       }
     }
-
-    console.log(`Total attachments: ${attachments.length}`)
 
     // Email content
     const mailOptions = {
@@ -313,22 +265,15 @@ export async function POST(request: NextRequest) {
       attachments
     }
 
-    console.log('Prepared email options')
-
     // Verify SMTP connection first
     try {
-      console.log('Verifying SMTP connection...')
       await transporter.verify()
-      console.log('SMTP server connection verified successfully')
     } catch (verifyError) {
-      console.error('SMTP verification failed:', verifyError)
       throw new Error(`SMTP server connection failed: ${verifyError}`)
     }
 
     // Send email
-    console.log('Attempting to send email from:', process.env.SMTP_USER, 'to:', process.env.ADOPTION_EMAIL)
     await transporter.sendMail(mailOptions)
-    console.log('Email sent successfully')
 
     return NextResponse.json({ 
       success: true, 
@@ -336,9 +281,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in API route:', error)
-    
-    // Return a proper JSON error response
     return NextResponse.json(
       { 
         success: false, 
