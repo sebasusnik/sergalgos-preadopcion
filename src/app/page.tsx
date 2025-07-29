@@ -219,16 +219,16 @@ export default function AdoptionPage(): React.ReactElement {
             {/* Personal Info Section */}
             <div className="space-y-4 p-5 border border-gray-200 rounded-lg">
               <h2 className="text-lg font-semibold border-b pb-2 mb-4">Datos Personales</h2>
-              <FormField id="fullName" label={questions.fullName}>
+              <FormField id="fullName" label={questions.fullName} required>
                 <Input id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} required />
                 {formErrors.fullName && <p className="text-red-500 text-xs">{formErrors.fullName}</p>}
               </FormField>
-              <FormField id="dni" label={questions.dni}>
+              <FormField id="dni" label={questions.dni} required>
                 <Input id="dni" name="dni" type="number" value={formData.dni} onChange={handleChange} required />
                 {formErrors.dni && <p className="text-red-500 text-xs">{formErrors.dni}</p>}
               </FormField>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField id="address" label={questions.address}>
+                <FormField id="address" label={questions.address} required>
                   <Input id="address" name="address" value={formData.address} onChange={handleChange} required />
                   {formErrors.address && <div className="min-h-[20px]">
                     <p className="text-red-500 text-xs pt-1">{formErrors.address}</p>
@@ -240,20 +240,20 @@ export default function AdoptionPage(): React.ReactElement {
                 </FormField>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField id="city" label={questions.city}>
+                <FormField id="city" label={questions.city} required>
                   <Input id="city" name="city" value={formData.city} onChange={handleChange} required />
                   {formErrors.city && <div className="min-h-[20px]">
                     <p className="text-red-500 text-xs pt-1">{formErrors.city}</p>
                   </div>}
                 </FormField>
-                <FormField id="phone" label={questions.phone}>
+                <FormField id="phone" label={questions.phone} required>
                   <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} required />
                   {formErrors.phone && <div className="min-h-[20px]">
                     <p className="text-red-500 text-xs pt-1">{formErrors.phone}</p>
                   </div>}
                 </FormField>
               </div>
-              <FormField id="email" label={questions.email}>
+              <FormField id="email" label={questions.email} required>
                 <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
                 {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
               </FormField>
@@ -266,7 +266,7 @@ export default function AdoptionPage(): React.ReactElement {
             <div className="space-y-4 p-5 border border-gray-200 rounded-lg">
               <h2 className="text-lg font-semibold border-b pb-2 mb-4">Cuestionario</h2>
               
-              <FormField id="q1" label={questions.q1}>
+              <FormField id="q1" label={questions.q1} required>
                 <Input id="q1" name="q1" type="number" value={formData.q1} onChange={handleChange} required />
                 {formErrors.q1 && <p className="text-red-500 text-xs">{formErrors.q1}</p>}
               </FormField>
@@ -275,7 +275,7 @@ export default function AdoptionPage(): React.ReactElement {
                 <Textarea id="q2" name="q2" value={formData.q2} onChange={handleChange} />
               </FormField>
 
-              <FormField id="q3" label={questions.q3}>
+              <FormField id="q3" label={questions.q3} required>
                 <RadioGroup 
                   name="q3" 
                   options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
@@ -306,7 +306,7 @@ export default function AdoptionPage(): React.ReactElement {
                 <Textarea id="q8" name="q8" value={formData.q8} onChange={handleChange} />
               </FormField>
               
-              <FormField id="q9" label={questions.q9}>
+              <FormField id="q9" label={questions.q9} required>
                 <Textarea id="q9" name="q9" value={formData.q9} onChange={handleChange} required />
                 {formErrors.q9 && <p className="text-red-500 text-xs">{formErrors.q9}</p>}
               </FormField>
@@ -315,7 +315,7 @@ export default function AdoptionPage(): React.ReactElement {
                 <Textarea id="q10" name="q10" value={formData.q10} onChange={handleChange} />
               </FormField>
               
-              <FormField id="q11" label={questions.q11}>
+              <FormField id="q11" label={questions.q11} required>
                 <RadioGroup 
                   name="q11" 
                   options={[{value: 'Casa', label: 'Casa'}, {value: 'Departamento', label: 'Departamento'}]} 
@@ -371,7 +371,7 @@ export default function AdoptionPage(): React.ReactElement {
                 <Textarea id="q21" name="q21" value={formData.q21} onChange={handleChange} />
               </FormField>
               
-              <FormField id="q22" label={questions.q22}>
+              <FormField id="q22" label={questions.q22} required>
                 <RadioGroup 
                   name="q22" 
                   options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
@@ -382,7 +382,7 @@ export default function AdoptionPage(): React.ReactElement {
                 {formErrors.q22 && <p className="text-red-500 text-xs">{formErrors.q22}</p>}
               </FormField>
 
-              <FormField id="q23" label={questions.q23}>
+              <FormField id="q23" label={questions.q23} required>
                 <RadioGroup 
                   name="q23" 
                   options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
@@ -404,7 +404,7 @@ export default function AdoptionPage(): React.ReactElement {
                 />
               </FormField>
               
-              <FormField id="q25" label={questions.q25}>
+              <FormField id="q25" label={questions.q25} required>
                 <RadioGroup 
                   name="q25" 
                   options={[{value: 'Sí', label: 'Sí'}, {value: 'No', label: 'No'}]} 
