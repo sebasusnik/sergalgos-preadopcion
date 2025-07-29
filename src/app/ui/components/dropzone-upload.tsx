@@ -1,6 +1,6 @@
-import React, { useCallback, useState, useRef } from 'react'
+import React, { useCallback, useState, useRef, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, AlertCircle, Trash2, X } from 'lucide-react'
+import { Upload, AlertCircle, Trash2, X, Bug } from 'lucide-react'
 import { Button } from './button'
 
 interface DropzoneUploadProps {
@@ -10,6 +10,7 @@ interface DropzoneUploadProps {
   onError?: (error: string) => void
   maxSize?: number // in bytes
   maxFiles?: number
+  debug?: boolean
 }
 
 export function DropzoneUpload({
@@ -18,13 +19,33 @@ export function DropzoneUpload({
   error,
   onError,
   maxSize = 5 * 1024 * 1024,
-  maxFiles = 10
+  maxFiles = 10,
+  debug = process.env.NODE_ENV === 'development'
 }: DropzoneUploadProps) {
   const [localError, setLocalError] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [debugLogs, setDebugLogs] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Debug logging function
+  const addDebugLog = (message: string) => {
+    if (debug) {
+      const timestamp = new Date().toLocaleTimeString()
+      const logMessage = `[${timestamp}] ${message}`
+      console.log(logMessage)
+      setDebugLogs(prev => [...prev.slice(-9), logMessage]) // Keep last 10 logs
+    }
+  }
+
+  // Debug logging
+  useEffect(() => {
+    if (debug) {
+      addDebugLog(`Component state: files=${files.length}, processing=${isProcessing}, errors=${localError ? 'yes' : 'no'}`)
+    }
+  }, [files, localError, isProcessing, debug])
+
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+    addDebugLog(`onDrop called: accepted=${acceptedFiles.length}, rejected=${rejectedFiles.length}`)
 
     if (rejectedFiles.length > 0) {
       const errorMessages = rejectedFiles.map(({ file, errors }) => {
@@ -55,7 +76,7 @@ export function DropzoneUpload({
     if (acceptedFiles.length > 0) {
       onFilesChange([...files, ...acceptedFiles])
     }
-  }, [files, onFilesChange, maxSize, onError])
+  }, [files, onFilesChange, maxSize, onError, debug])
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
@@ -72,9 +93,15 @@ export function DropzoneUpload({
     e.preventDefault()
     e.stopPropagation()
     
-    if (isProcessing) return
+    addDebugLog('handleGallerySelect called')
+    
+    if (isProcessing) {
+      addDebugLog('Already processing, ignoring click')
+      return
+    }
     
     setIsProcessing(true)
+    addDebugLog('Set processing to true')
     
     try {
       // Create a new file input for gallery selection
@@ -83,24 +110,38 @@ export function DropzoneUpload({
       input.accept = 'image/*'
       input.style.display = 'none'
       
+      addDebugLog('Created file input element')
+      
       input.onchange = (event) => {
+        addDebugLog('File input onchange triggered')
+        
         const target = event.target as HTMLInputElement
         if (target.files && target.files.length > 0) {
           const fileArray = Array.from(target.files)
+          addDebugLog(`Files selected: ${fileArray.map(f => f.name).join(', ')}`)
           onFilesChange([...files, ...fileArray])
         } else {
+          addDebugLog('No files selected')
         }
         setIsProcessing(false)
-        document.body.removeChild(input)
+        addDebugLog('Set processing to false')
+        if (document.body.contains(input)) {
+          document.body.removeChild(input)
+          addDebugLog('Removed input from DOM')
+        }
       }
       
       input.oncancel = () => {
+        addDebugLog('File input cancelled')
         setIsProcessing(false)
-        document.body.removeChild(input)
+        if (document.body.contains(input)) {
+          document.body.removeChild(input)
+        }
       }
       
       // Add error handling
       input.onerror = (error) => {
+        addDebugLog(`File input error: ${error}`)
         setIsProcessing(false)
         if (document.body.contains(input)) {
           document.body.removeChild(input)
@@ -108,18 +149,22 @@ export function DropzoneUpload({
       }
       
       document.body.appendChild(input)
+      addDebugLog('Added input to DOM and clicking')
       input.click()
     } catch (error) {
+      addDebugLog(`Error in handleGallerySelect: ${error}`)
       setIsProcessing(false)
     }
   }
 
   const removeFile = (index: number) => {
+    addDebugLog(`Removing file at index: ${index}`)
     const newFiles = files.filter((_, i) => i !== index)
     onFilesChange(newFiles)
   }
 
   const clearAllFiles = () => {
+    addDebugLog('Clearing all files')
     onFilesChange([])
     setLocalError('')
     if (onError) {
@@ -127,10 +172,57 @@ export function DropzoneUpload({
     }
   }
 
+  const clearDebugLogs = () => {
+    setDebugLogs([])
+  }
+
   const displayError = error || localError
 
   return (
     <div className="space-y-4">
+      {/* Debug Panel */}
+      {debug && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Bug className="h-4 w-4 text-yellow-600" />
+              <h4 className="text-sm font-medium text-yellow-800">Debug Info</h4>
+            </div>
+            <Button
+              type="button"
+              onClick={clearDebugLogs}
+              className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1"
+            >
+              Limpiar logs
+            </Button>
+          </div>
+          
+          <div className="text-xs text-yellow-700 space-y-1 mb-3">
+            <p>Files: {files.length}/{maxFiles}</p>
+            <p>Processing: {isProcessing ? 'Yes' : 'No'}</p>
+            <p>User Agent: {navigator.userAgent.substring(0, 50)}...</p>
+            <p>Mobile: {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Yes' : 'No'}</p>
+            <p>Max Size: {(maxSize / 1024 / 1024).toFixed(1)}MB</p>
+            {localError && <p>Local Error: {localError}</p>}
+            {error && <p>Prop Error: {error}</p>}
+          </div>
+
+          {/* Debug Logs */}
+          <div className="bg-black text-green-400 p-2 rounded text-xs font-mono max-h-40 overflow-y-auto">
+            <div className="mb-1 text-white">Debug Logs:</div>
+            {debugLogs.length === 0 ? (
+              <div className="text-gray-500">No logs yet...</div>
+            ) : (
+              debugLogs.map((log, index) => (
+                <div key={index} className="mb-1">
+                  {log}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Dropzone Area */}
       <div
         {...getRootProps()}

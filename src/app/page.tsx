@@ -31,6 +31,19 @@ export default function AdoptionPage(): React.ReactElement {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [debugLogs, setDebugLogs] = useState<string[]>([])
+
+  const debug = process.env.NODE_ENV === 'development'
+
+  // Debug logging function
+  const addDebugLog = (message: string) => {
+    if (debug) {
+      const timestamp = new Date().toLocaleTimeString()
+      const logMessage = `[${timestamp}] ${message}`
+      console.log(logMessage)
+      setDebugLogs(prev => [...prev.slice(-9), logMessage]) // Keep last 10 logs
+    }
+  }
 
   useEffect(() => {
     setIsMounted(true)
@@ -138,7 +151,10 @@ export default function AdoptionPage(): React.ReactElement {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    addDebugLog('Submit started')
+    
     if (!validateForm()) {
+      addDebugLog('Form validation failed')
       const firstErrorKey = Object.keys(formErrors)[0]
       if (firstErrorKey) {
         const errorElement = document.getElementById(firstErrorKey)
@@ -149,45 +165,63 @@ export default function AdoptionPage(): React.ReactElement {
       return
     }
     
+    addDebugLog('Form validation passed')
     setIsSubmitting(true)
+    addDebugLog('Set submitting to true')
 
     try {
       // Create FormData to send files
       const formDataToSend = new FormData()
+      addDebugLog('Created FormData object')
       
       // Add all form fields
       Object.keys(formData).forEach(key => {
         if (formData[key as keyof typeof formData] !== null) {
           formDataToSend.append(key, formData[key as keyof typeof formData] as string)
+          addDebugLog(`Added form field: ${key} = ${formData[key as keyof typeof formData]}`)
         }
       })
       
       // Add uploaded files
+      addDebugLog(`Adding ${uploadedFiles.length} files to FormData`)
       uploadedFiles.forEach((file, index) => {
+        addDebugLog(`Adding file ${index}: ${file.name} (${file.size} bytes, type: ${file.type})`)
         formDataToSend.append(`file_${index}`, file)
       })
       
       // Add file count
       formDataToSend.append('fileCount', uploadedFiles.length.toString())
+      addDebugLog(`Added fileCount: ${uploadedFiles.length}`)
 
+      addDebugLog('Sending request to /api/adoptar')
       const response = await fetch('/api/adoptar', {
         method: 'POST',
         body: formDataToSend, // Send as FormData instead of JSON
       })
 
+      addDebugLog(`Response received: ${response.status} ${response.statusText}`)
       const result = await response.json()
+      addDebugLog(`Response JSON: ${JSON.stringify(result)}`)
 
       if (result.success) {
+        addDebugLog('Submit successful')
         setShowSuccessModal(true)
       } else {
+        addDebugLog(`Submit failed: ${result.message}`)
         alert('Error al enviar el formulario: ' + result.message)
       }
     } catch (error) {
+      addDebugLog(`Submit error: ${error}`)
       console.error('Error submitting form:', error)
       alert('Error al enviar el formulario. Por favor, inténtalo de nuevo.')
     } finally {
+      addDebugLog('Set submitting to false')
       setIsSubmitting(false)
     }
+  }
+
+  const clearDebugLogs = () => {
+    setDebugLogs([])
   }
 
   // Don't render until mounted to avoid hydration issues
@@ -197,6 +231,38 @@ export default function AdoptionPage(): React.ReactElement {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-0 sm:p-6 md:p-8 bg-gray-50">
+      {/* Debug Panel */}
+      {debug && (
+        <div className="fixed top-4 right-4 w-80 bg-yellow-50 border border-yellow-200 rounded-lg p-4 z-50 max-h-96 overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-yellow-800">Submit Debug</h4>
+            <Button
+              type="button"
+              onClick={clearDebugLogs}
+              className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1"
+            >
+              Limpiar
+            </Button>
+          </div>
+          <div className="text-xs text-yellow-700 space-y-1 mb-3">
+            <p>Files: {uploadedFiles.length}</p>
+            <p>Submitting: {isSubmitting ? 'Yes' : 'No'}</p>
+            <p>Form Errors: {Object.keys(formErrors).length}</p>
+          </div>
+          <div className="bg-black text-green-400 p-2 rounded text-xs font-mono max-h-40 overflow-y-auto">
+            {debugLogs.length === 0 ? (
+              <div className="text-gray-500">No logs yet...</div>
+            ) : (
+              debugLogs.map((log, index) => (
+                <div key={index} className="mb-1">
+                  {log}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {showSuccessModal && (
         <Modal title="¡Formulario Enviado!" onClose={() => setShowSuccessModal(false)}>
           <p>¡Gracias por tu interés en adoptar!</p>
@@ -400,6 +466,7 @@ export default function AdoptionPage(): React.ReactElement {
                   onError={setFileError}
                   maxSize={5 * 1024 * 1024} // 5MB
                   maxFiles={10}
+                  debug={debug}
                 />
               </FormField>
               
