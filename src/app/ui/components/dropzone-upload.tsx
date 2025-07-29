@@ -94,7 +94,6 @@ export function DropzoneUpload({
 }: DropzoneUploadProps) {
   const [localError, setLocalError] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const onDrop = useCallback(async (acceptedFiles: File[], rejectedFiles: any[]) => {
     if (rejectedFiles.length > 0) {
@@ -162,6 +161,7 @@ export function DropzoneUpload({
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = 'image/*'
+      input.multiple = true // Enable multiple file selection
       input.style.display = 'none'
       
       input.onchange = async (event) => {
@@ -207,7 +207,7 @@ export function DropzoneUpload({
       }
       
       // Add error handling
-      input.onerror = (error) => {
+      input.onerror = () => {
         setIsProcessing(false)
         if (document.body.contains(input)) {
           document.body.removeChild(input)
@@ -281,22 +281,9 @@ export function DropzoneUpload({
             </div>
           </div>
           
-          <p className="text-xs text-gray-500">
-            Formatos: JPG, PNG, WebP • Máximo {maxSize / 1024 / 1024}MB por archivo
-            {maxFiles > 1 && ` • Máximo ${maxFiles} archivos`}
-            <br />
-            <span className="text-blue-600">Las imágenes se comprimirán automáticamente para optimizar el envío</span>
-          </p>
-          
           {files.length >= maxFiles && (
             <p className="text-xs text-orange-600">
               Límite de archivos alcanzado
-            </p>
-          )}
-          
-          {isProcessing && (
-            <p className="text-xs text-blue-600">
-              Comprimiendo imágenes...
             </p>
           )}
         </div>
@@ -352,7 +339,7 @@ export function DropzoneUpload({
                     <p className="text-xs text-gray-500">
                       {(file.size / 1024 / 1024).toFixed(1)} MB
                       {file.type === 'image/jpeg' && file.size < 1024 * 1024 && (
-                        <span className="text-green-600 ml-1">✓ Comprimido</span>
+                        <span className="text-green-600 ml-1">✓ Cargado</span>
                       )}
                     </p>
                   </div>
